@@ -71,3 +71,6 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+ColorAndFaceDetection/.classpath
+ColorAndFaceDetection/.classpath
+ColorAndFaceDetection/.settings/org.eclipse.jdt.core.prefs
