@@ -92,13 +92,15 @@ public class ColorBlobDetector {
 
         // Filter contours by area and resize to fit the original image size
         mContours.clear();
-        each = contours.iterator();
-        while (each.hasNext()) {
-            MatOfPoint contour = each.next();
-            if (Imgproc.contourArea(contour) > mMinContourArea*maxArea) {
-                Core.multiply(contour, new Scalar(4,4), contour);
-                mContours.add(contour);
-            }
+        if (maxArea > 1000) {
+	        each = contours.iterator();
+	        while (each.hasNext()) {
+	            MatOfPoint contour = each.next();
+	            if (Imgproc.contourArea(contour) > mMinContourArea*maxArea) {
+	                Core.multiply(contour, new Scalar(4,4), contour);
+	                mContours.add(contour);
+	            }
+	        }
         }
     }
 
