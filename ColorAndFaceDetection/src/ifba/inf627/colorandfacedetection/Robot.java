@@ -12,10 +12,12 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
+import android.os.Handler;
+import android.os.Message;
 import android.util.Log;
 import android.widget.Toast;
 
-public class Robot{
+public class Robot /*extends Thread*/{
 
 	public static final int 			REQUEST_ENABLE_BT	= 1;
 	private static final UUID			MY_UUID				= UUID.fromString("00001101-0000-1000-8000-00805f9b34fb");
@@ -33,7 +35,7 @@ public class Robot{
 	private ProgressDialog mBluetoothConnectProgressDialog;
 
 	private boolean 					mWalking;
-	private ConnectedThread connectedThread;
+	
 	private boolean stopWorker;
 	
 	private Robot(RobotActivity robotActivity) {
@@ -67,19 +69,18 @@ public class Robot{
 			if(d.getName().equals("VINICIUS")){
 				device = d;
 			}
-		}
+		}	
 		
-		//BluetoothDevice device = mBtAdapter.getRemoteDevice(mDeviceAddress);
 		try {
-			//MY_UUID = device.getUuids()[0].getUuid();
+			
 			mBtSocket = device.createRfcommSocketToServiceRecord(MY_UUID);			
 			mBtAdapter.cancelDiscovery();
 			mBtSocket.connect();   
 			mOutStream = mBtSocket.getOutputStream();
-			mInStream = mBtSocket.getInputStream();
-			connectedThread = new ConnectedThread();
+			mInStream = mBtSocket.getInputStream();		
 			
-			connectedThread.start();
+			
+			
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -96,7 +97,7 @@ public class Robot{
 		return mInstance;
 	}
 	
-	public void stop() {
+	public void stopRobo() {
 		Log.i(Robot.class.toString(), "Parando Robô!");
 		
 		if (mBtSocket != null) {
@@ -135,17 +136,21 @@ public class Robot{
 	}
 	
 	private boolean sendCommand (String command) {
-		try {		
-			if(mBtSocket.isConnected()){
-				byte[] buffer = command.getBytes();
-				mOutStream.write(buffer);
-				mOutStream.flush();
-			}
-			return true;
+		boolean retorno = false;
+		try {			
+			command = "\n"+command;
+			byte[] buffer = command.getBytes();
+			mOutStream.write(buffer);
+			mOutStream.flush();	
+			byte[] inputData = new byte[3];
+			int result = mInStream.read(inputData, 0, mInStream.available());
+			String sretorno = new String(inputData);
+			System.out.println("Retorno da forma certa:"+sretorno.trim());			
+			retorno = true;
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		return false;
+		return retorno;
 	}
 	
 	private void pairDevice(BluetoothDevice device) {
@@ -165,37 +170,40 @@ public class Robot{
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
+    }	
 	
-	private class ConnectedThread extends Thread {    
-
-	    public void run() {
-	        byte[] buffer = null;  // buffer store for the stream
-	        int bytes; // bytes returned from read()
-	        int bytesAvailable;
-	        // Keep listening to the InputStream until an exception occurs
-	        while (!Thread.currentThread().isInterrupted() && !stopWorker) {
-	            try {
-	                // Read from the InputStream	            	
-	            	bytesAvailable = mInStream.available();
-	            	if(bytesAvailable >0){
-	            		buffer = new byte[bytesAvailable];
-	            	
-		                bytes = mInStream.read(buffer);
-		                // Send the obtained bytes to the UI activity
-		               /* mHandler.obtainMessage(MESSAGE_READ, bytes, -1, buffer)
-		                        .sendToTarget();*/
-		                String retorno = new String(buffer);
-		                System.out.println("Retorno:"+retorno);
-		                
-	            	}
-	            	
-	            } catch (IOException e) {
-	            	stopWorker = true;
-	                break;
-	            }
-	        }
-	    }	   
+	public void sendInitialCommand(){		
+		try {			
+			String command = "\nW";
+			byte[] buffer = command.getBytes();
+			mOutStream.write(buffer);
+			mOutStream.flush();	
+			byte[] inputData = new byte[3];
+			int result = mInStream.read(inputData, 0, mInStream.available());
+			String sretorno = new String(inputData);
+			System.out.println("Retorno da Inicializacao:"+sretorno.trim());	
+			
+		} catch (IOException e) {
+			e.printStackTrace();
+		}		
 	}
+	
+	
+	Handler mHandler = new Handler() {
+    	@Override
+    	public void handleMessage(Message msg) {
+	    	byte[] writeBuf = (byte[]) msg.obj;
+	    	int begin = (int)msg.arg1;
+	    	int end = (int)msg.arg2;
+	    	switch(msg.what) {
+	    		case 1 :
+		    		String writeMessage = new String(writeBuf);
+		    		writeMessage = writeMessage.substring(begin, end);
+		    	break;
+	    	}
+    	}
+    };
+	
+	
 	
 }

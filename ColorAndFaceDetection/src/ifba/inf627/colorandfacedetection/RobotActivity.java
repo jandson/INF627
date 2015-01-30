@@ -152,7 +152,7 @@ public class RobotActivity extends Activity implements CvCameraViewListener2, Ro
 		mColorDetector.setHsvColor(mBlobColorHsv);
 
 		mRobot = Robot.getInstance(this);
-		
+		mRobot.sendInitialCommand();
 		mFaceDetected = false;
 		mColorDetected = false;
 	}
@@ -171,7 +171,8 @@ public class RobotActivity extends Activity implements CvCameraViewListener2, Ro
 		}
 
 		if (hasFaces() || hasColor()) {
-			mRobot.stop();
+			//mRobot.stop();
+			mRobot.stopRobo();
 		}
 		
 		return mRgba;
