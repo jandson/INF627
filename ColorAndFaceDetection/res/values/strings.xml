@@ -4,5 +4,6 @@
     <string name="app_name">Color And Face Detection</string>
     <string name="title_activity_color_and_face_detection">ColorAndFaceDetectionActivity</string>
     <string name="hello_world">Hello world!</string>
+    <string name="failure_bluetooth_connection">Falha de conexão com Bluetooth!</string>
 
 </resources>

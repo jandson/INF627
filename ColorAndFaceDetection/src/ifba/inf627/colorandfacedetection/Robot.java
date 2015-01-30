@@ -3,11 +3,10 @@ package ifba.inf627.colorandfacedetection;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.Method;
 import java.util.Set;
 import java.util.UUID;
 
-import android.app.ProgressDialog;
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
@@ -21,7 +20,6 @@ public class Robot /*extends Thread*/{
 
 	public static final int 			REQUEST_ENABLE_BT	= 1;
 	private static final UUID			MY_UUID				= UUID.fromString("00001101-0000-1000-8000-00805f9b34fb");
-	//private static UUID			MY_UUID				;
 	private static Robot 				mInstance;
 	
 	private static RobotActivity 		mRobotActivity;
@@ -30,13 +28,7 @@ public class Robot /*extends Thread*/{
 	private static BluetoothSocket		mBtSocket;
 	private static OutputStream			mOutStream;
 	private static InputStream			mInStream;
-	//private static String				mDeviceAddress		= "B0:34:95:41:A6:78"; //Mac Address of Device
-	private static String				mDeviceAddress		= "00:14:01:03:54:81"; //Mac Address of Device
-	private ProgressDialog mBluetoothConnectProgressDialog;
-
 	private boolean 					mWalking;
-	
-	private boolean stopWorker;
 	
 	private Robot(RobotActivity robotActivity) {
 		mRobotActivity = robotActivity;
@@ -61,8 +53,6 @@ public class Robot /*extends Thread*/{
 			mRobotActivity.startActivityForResult(intent, REQUEST_ENABLE_BT);
 		}
 		
-		
-		
 		Set<BluetoothDevice> pairedDevices  = mBtAdapter.getBondedDevices();
 		BluetoothDevice device = null;
 		for(BluetoothDevice d:pairedDevices){
@@ -71,23 +61,25 @@ public class Robot /*extends Thread*/{
 			}
 		}	
 		
-		try {
-			
-			mBtSocket = device.createRfcommSocketToServiceRecord(MY_UUID);			
-			mBtAdapter.cancelDiscovery();
-			mBtSocket.connect();   
-			mOutStream = mBtSocket.getOutputStream();
-			mInStream = mBtSocket.getInputStream();		
-			
-			
-			
-		} catch (IOException e) {
-			e.printStackTrace();
+		if (device != null) {
+			try {
+				mBtSocket = device.createRfcommSocketToServiceRecord(MY_UUID);			
+				mBtAdapter.cancelDiscovery();
+				if (mBtSocket != null) {
+					mBtSocket.connect();   
+					mOutStream = mBtSocket.getOutputStream();
+					mInStream = mBtSocket.getInputStream();
+				} else {
+					Toast toast = Toast.makeText(
+							mRobotActivity.getApplicationContext()
+							, R.string.failure_bluetooth_connection
+							, Toast.LENGTH_LONG);
+					toast.show();
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
-		
-		
-		stopWorker = false;
-		
 	}
 	
 	public static synchronized Robot getInstance(final RobotActivity robotActivity) {
@@ -143,7 +135,7 @@ public class Robot /*extends Thread*/{
 			mOutStream.write(buffer);
 			mOutStream.flush();	
 			byte[] inputData = new byte[3];
-			int result = mInStream.read(inputData, 0, mInStream.available());
+			mInStream.read(inputData, 0, mInStream.available());
 			String sretorno = new String(inputData);
 			System.out.println("Retorno da forma certa:"+sretorno.trim());			
 			retorno = true;
@@ -153,42 +145,24 @@ public class Robot /*extends Thread*/{
 		return retorno;
 	}
 	
-	private void pairDevice(BluetoothDevice device) {
-        try {
-            Method method = device.getClass().getMethod("createBond", (Class[]) null);
-            method.invoke(device, (Object[]) null);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-	
-	private void unpairDevice(BluetoothDevice device) {
-        try {
-            Method method = device.getClass().getMethod("removeBond", (Class[]) null);
-            method.invoke(device, (Object[]) null);
- 
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }	
-	
-	public void sendInitialCommand(){		
-		try {			
-			String command = "\nW";
-			byte[] buffer = command.getBytes();
-			mOutStream.write(buffer);
-			mOutStream.flush();	
-			byte[] inputData = new byte[3];
-			int result = mInStream.read(inputData, 0, mInStream.available());
-			String sretorno = new String(inputData);
-			System.out.println("Retorno da Inicializacao:"+sretorno.trim());	
-			
-		} catch (IOException e) {
-			e.printStackTrace();
-		}		
+	public void sendInitialCommand(){
+		if ((mOutStream != null) && (mInStream != null)) { 
+			try {			
+				String command = "\nW";
+				byte[] buffer = command.getBytes();
+				mOutStream.write(buffer);
+				mOutStream.flush();	
+				byte[] inputData = new byte[3];
+				mInStream.read(inputData, 0, mInStream.available());
+				String sretorno = new String(inputData);
+				System.out.println("Retorno da Inicializacao:"+sretorno.trim());	
+			} catch (IOException e) {
+				e.printStackTrace();
+			}		
+		}
 	}
 	
-	
+	@SuppressLint("HandlerLeak") 
 	Handler mHandler = new Handler() {
     	@Override
     	public void handleMessage(Message msg) {
@@ -203,7 +177,5 @@ public class Robot /*extends Thread*/{
 	    	}
     	}
     };
-	
-	
 	
 }
