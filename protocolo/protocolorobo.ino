@@ -15,7 +15,9 @@ void setup()
   // SoftwareSerial "com port" data rate. JY-MCU v1.03 defaults to 9600.  
   bluetooth.begin(9600);  
   pinMode(9, OUTPUT);     // Pino para acionar o modo de configuracao (pino KEY do módulo)
+  Serial.begin(9600);
   digitalWrite(9, HIGH);
+  limpaBufferEntrada();
 }  
 
 void executeAction(String command){  
@@ -26,15 +28,18 @@ void executeAction(String command){
   }    
 }
 
-int confirmAction(String command){     
+String confirmAction(String command){     
  
-  int confirm = 0;  
+  Serial.println("Recebido:"+command); 
+  String confirm = "0";  
    
   if(command.equalsIgnoreCase("W") || command.equalsIgnoreCase("S")){        
-    confirm = 1;
+    confirm = "1";
   }   
   
   bluetooth.print(confirm);
+  
+  Serial.println("Retornado:"+confirm);
   
   return confirm;
 }
@@ -64,7 +69,7 @@ void loop()
         
         String dados = buf;
         dados.trim();        
-        if(confirmAction(dados) == 1){
+        if(confirmAction(dados) == "1"){
            executeAction(dados);
         }  
         
@@ -82,6 +87,16 @@ void loop()
   }       
    
 }  
+
+void limpaBufferEntrada() {
+
+  while (bluetooth.available()) {
+
+    bluetooth.read();
+
+  }
+
+}
 
 
 

@@ -16,7 +16,7 @@ import android.os.Message;
 import android.util.Log;
 import android.widget.Toast;
 
-public class Robot /*extends Thread*/{
+public class Robot{
 
 	public static final int 			REQUEST_ENABLE_BT	= 1;
 	private static final UUID			MY_UUID				= UUID.fromString("00001101-0000-1000-8000-00805f9b34fb");
@@ -90,13 +90,23 @@ public class Robot /*extends Thread*/{
 	}
 	
 	public void stopRobo() {
-		Log.i(Robot.class.toString(), "Parando Robô!");
-		
-		if (mBtSocket != null) {
-			sendCommand("S");			
-		}
-		
+		Log.i(Robot.class.toString(), "Parando Robô!");		
 		try {
+			if (mBtSocket != null) {				
+				if(!sendCommand("S")){
+					Thread.sleep(100);
+					if(!sendCommand("S")){
+						Thread.sleep(100);
+						if(!sendCommand("S")){
+							Log.i(Robot.class.toString(), "Robo nao consegue parar!");
+							return;
+						}
+					}
+				}
+				
+			}else{
+				Log.i(Robot.class.toString(), "Robo nao consegue parar!");
+			}
 			Thread.sleep(250);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
@@ -107,13 +117,22 @@ public class Robot /*extends Thread*/{
 	}
 	
 	public void walk() {
-		Log.i(Robot.class.toString(), "Ordenando que o robô ande!");
-
-		if (mBtSocket != null) {
-			sendCommand("W");
-		}
-		
+		Log.i(Robot.class.toString(), "Ordenando que o robô ande!");		
 		try {
+			if (mBtSocket != null) {
+				if(!sendCommand("W")){
+					Thread.sleep(100);
+					if(!sendCommand("W")){
+						Thread.sleep(100);
+						if(!sendCommand("W")){
+							Log.i(Robot.class.toString(), "Robo nao consegue andar!");
+							return;
+						}
+					}
+				}
+			}else{
+				Log.i(Robot.class.toString(), "Robo nao consegue andar!");
+			}
 			Thread.sleep(250);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
@@ -136,9 +155,10 @@ public class Robot /*extends Thread*/{
 			mOutStream.flush();	
 			byte[] inputData = new byte[3];
 			mInStream.read(inputData, 0, mInStream.available());
-			String sretorno = new String(inputData);
-			System.out.println("Retorno da forma certa:"+sretorno.trim());			
-			retorno = true;
+			String sretorno = new String(inputData).trim();
+			if(sretorno.contains("1")){			
+				retorno = true;
+			}
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -148,14 +168,14 @@ public class Robot /*extends Thread*/{
 	public void sendInitialCommand(){
 		if ((mOutStream != null) && (mInStream != null)) { 
 			try {			
-				String command = "\nW";
+				String command = "\nS";
 				byte[] buffer = command.getBytes();
 				mOutStream.write(buffer);
-				mOutStream.flush();	
-				byte[] inputData = new byte[3];
-				mInStream.read(inputData, 0, mInStream.available());
-				String sretorno = new String(inputData);
-				System.out.println("Retorno da Inicializacao:"+sretorno.trim());	
+				mOutStream.flush();
+				
+				mOutStream.write(buffer);
+				mOutStream.flush();				
+					
 			} catch (IOException e) {
 				e.printStackTrace();
 			}		
