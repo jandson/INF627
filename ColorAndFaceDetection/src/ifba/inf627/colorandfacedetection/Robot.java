@@ -56,7 +56,7 @@ public class Robot{
 		Set<BluetoothDevice> pairedDevices  = mBtAdapter.getBondedDevices();
 		BluetoothDevice device = null;
 		for(BluetoothDevice d:pairedDevices){
-			if(d.getName().equals("VINICIUS")){
+			if(d.getName().equals("RoboCarro")){
 				device = d;
 			}
 		}	
@@ -93,21 +93,22 @@ public class Robot{
 		Log.i(Robot.class.toString(), "Parando Robô!");		
 		try {
 			if (mBtSocket != null) {				
-				if(!sendCommand("S")){
-					Thread.sleep(100);
-					if(!sendCommand("S")){
-						Thread.sleep(100);
-						if(!sendCommand("S")){
-							Log.i(Robot.class.toString(), "Robo nao consegue parar!");
-							return;
-						}
-					}
+//				if(!sendCommand("S")){
+//					Thread.sleep(100);
+//					if(!sendCommand("S")){
+//						Thread.sleep(100);
+//						if(!sendCommand("S")){
+//							Log.i(Robot.class.toString(), "Robo nao consegue parar!");
+//							return;
+//						}
+//					}
+//				}
+				if (sendCommand("S")) {
+					Thread.sleep(3000);
 				}
-				
 			}else{
 				Log.i(Robot.class.toString(), "Robo nao consegue parar!");
 			}
-			Thread.sleep(250);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
@@ -120,15 +121,19 @@ public class Robot{
 		Log.i(Robot.class.toString(), "Ordenando que o robô ande!");		
 		try {
 			if (mBtSocket != null) {
-				if(!sendCommand("W")){
-					Thread.sleep(100);
-					if(!sendCommand("W")){
-						Thread.sleep(100);
-						if(!sendCommand("W")){
-							Log.i(Robot.class.toString(), "Robo nao consegue andar!");
-							return;
-						}
-					}
+//				if(!sendCommand("W")){
+//					Thread.sleep(100);
+//					if(!sendCommand("W")){
+//						Thread.sleep(100);
+//						if(!sendCommand("W")){
+//							Log.i(Robot.class.toString(), "Robo nao consegue andar!");
+//							return;
+//						}
+//					}
+//				}
+				
+				if (sendCommand("W")) {
+					Thread.sleep(3000);
 				}
 			}else{
 				Log.i(Robot.class.toString(), "Robo nao consegue andar!");
@@ -149,11 +154,10 @@ public class Robot{
 	private boolean sendCommand (String command) {
 		boolean retorno = false;
 		try {			
-			command = "\n"+command;
 			byte[] buffer = command.getBytes();
 			mOutStream.write(buffer);
 			mOutStream.flush();	
-			byte[] inputData = new byte[3];
+			byte[] inputData = new byte[6];
 			mInStream.read(inputData, 0, mInStream.available());
 			String sretorno = new String(inputData).trim();
 			if(sretorno.contains("1")){			

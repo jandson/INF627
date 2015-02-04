@@ -14,6 +14,7 @@ import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener2;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Core;
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
 import org.opencv.core.MatOfRect;
@@ -30,10 +31,13 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.View.OnTouchListener;
 import android.view.WindowManager;
 import android.widget.Toast;
 
-public class RobotActivity extends Activity implements CvCameraViewListener2, RobotListener {
+public class RobotActivity extends Activity implements CvCameraViewListener2, OnTouchListener, RobotListener {
 
 	private static final String 	TAG 				= RobotActivity.class.toString();
 	private static final Scalar 	FACE_RECT_COLOR		= new Scalar(0, 255, 0, 255);
@@ -58,7 +62,12 @@ public class RobotActivity extends Activity implements CvCameraViewListener2, Ro
 	private boolean					mColorDetected;
 
 	private Robot					mRobot;
-
+	
+	private boolean              	mIsColorSelected = false;
+	private Scalar               	mBlobColorRgba;
+	private Mat                  	mSpectrum;
+    private Size                 	SPECTRUM_SIZE;
+    
 	private BaseLoaderCallback  mLoaderCallback = new BaseLoaderCallback(this) {
 		@Override
 		public void onManagerConnected(int status) {
@@ -97,6 +106,7 @@ public class RobotActivity extends Activity implements CvCameraViewListener2, Ro
 				}
 
 				mOpenCvCameraView.enableView();
+				mOpenCvCameraView.setOnTouchListener(RobotActivity.this);
 			} break;
 			default:
 			{
@@ -145,11 +155,13 @@ public class RobotActivity extends Activity implements CvCameraViewListener2, Ro
 	@Override
 	public void onCameraViewStarted(int width, int height) {
 		mGray = new Mat();
-		mRgba = new Mat();
+		mRgba = new Mat(height, width, CvType.CV_8UC4);
 		mColorDetector = new ColorBlobDetector();
-		mBlobColorHsv = new Scalar(60, 128, 128); //Amarelo
-		CONTOUR_COLOR = new Scalar(255,0,0,255);
-		mColorDetector.setHsvColor(mBlobColorHsv);
+		mSpectrum = new Mat();
+		mBlobColorRgba = new Scalar(255);
+        mBlobColorHsv = new Scalar(255);
+        SPECTRUM_SIZE = new Size(200, 64);
+        CONTOUR_COLOR = new Scalar(255,0,0,255);
 
 		mRobot = Robot.getInstance(this);
 		mRobot.sendInitialCommand();
@@ -165,6 +177,19 @@ public class RobotActivity extends Activity implements CvCameraViewListener2, Ro
 
 	@Override
 	public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
+		if (mIsColorSelected) {
+			mColorDetector.process(mRgba);
+            List<MatOfPoint> contours = mColorDetector.getContours();
+            Log.e(TAG, "Contours count: " + contours.size());
+            Imgproc.drawContours(mRgba, contours, -1, CONTOUR_COLOR);
+
+            Mat colorLabel = mRgba.submat(4, 68, 4, 68);
+            colorLabel.setTo(mBlobColorRgba);
+
+            Mat spectrumLabel = mRgba.submat(4, 4 + mSpectrum.rows(), 70, 70 + mSpectrum.cols());
+            mSpectrum.copyTo(spectrumLabel);
+        }
+		
 		if (!mFaceDetected || !mColorDetected) {
 			mRgba = inputFrame.rgba();
 			mGray = inputFrame.gray();
@@ -206,6 +231,64 @@ public class RobotActivity extends Activity implements CvCameraViewListener2, Ro
 			break;
 		}
 	}
+	
+	private Scalar converScalarHsv2Rgba(Scalar hsvColor) {
+        Mat pointMatRgba = new Mat();
+        Mat pointMatHsv = new Mat(1, 1, CvType.CV_8UC3, hsvColor);
+        Imgproc.cvtColor(pointMatHsv, pointMatRgba, Imgproc.COLOR_HSV2RGB_FULL, 4);
+
+        return new Scalar(pointMatRgba.get(0, 0));
+    }
+	
+	public boolean onTouch(View v, MotionEvent event) {
+        int cols = mRgba.cols();
+        int rows = mRgba.rows();
+
+        int xOffset = (mOpenCvCameraView.getWidth() - cols) / 2;
+        int yOffset = (mOpenCvCameraView.getHeight() - rows) / 2;
+
+        int x = (int)event.getX() - xOffset;
+        int y = (int)event.getY() - yOffset;
+
+        Log.i(TAG, "Touch image coordinates: (" + x + ", " + y + ")");
+
+        if ((x < 0) || (y < 0) || (x > cols) || (y > rows)) return false;
+
+        Rect touchedRect = new Rect();
+
+        touchedRect.x = (x>4) ? x-4 : 0;
+        touchedRect.y = (y>4) ? y-4 : 0;
+
+        touchedRect.width = (x+4 < cols) ? x + 4 - touchedRect.x : cols - touchedRect.x;
+        touchedRect.height = (y+4 < rows) ? y + 4 - touchedRect.y : rows - touchedRect.y;
+
+        Mat touchedRegionRgba = mRgba.submat(touchedRect);
+
+        Mat touchedRegionHsv = new Mat();
+        Imgproc.cvtColor(touchedRegionRgba, touchedRegionHsv, Imgproc.COLOR_RGB2HSV_FULL);
+
+        // Calculate average color of touched region
+        mBlobColorHsv = Core.sumElems(touchedRegionHsv);
+        int pointCount = touchedRect.width*touchedRect.height;
+        for (int i = 0; i < mBlobColorHsv.val.length; i++)
+            mBlobColorHsv.val[i] /= pointCount;
+
+        mBlobColorRgba = converScalarHsv2Rgba(mBlobColorHsv);
+
+        Log.i(TAG, "Touched rgba color: (" + mBlobColorRgba.val[0] + ", " + mBlobColorRgba.val[1] +
+                ", " + mBlobColorRgba.val[2] + ", " + mBlobColorRgba.val[3] + ")");
+
+        mColorDetector.setHsvColor(mBlobColorHsv);
+
+        Imgproc.resize(mColorDetector.getSpectrum(), mSpectrum, SPECTRUM_SIZE);
+
+        mIsColorSelected = true;
+
+        touchedRegionRgba.release();
+        touchedRegionHsv.release();
+
+        return false; // don't need subsequent touch events
+    }
 
 	private boolean hasFaces() {
 		if (mAbsoluteFaceSize == 0) {
